@@ -5,6 +5,7 @@ import hashlib
 import re
 import jwt
 
+SECRET_KEY = 'secret'
 
 app = Flask(__name__)
 CORS(app)
@@ -93,7 +94,7 @@ def check_credentials(email, password):
 
 
 def generate_jwt_token(email):
-    return jwt.encode({'email': email}, 'secret', algorithm='HS256')
+    return jwt.encode({'email': email}, SECRET_KEY, algorithm='HS256')
 
 
 @app.route('/auth/login', methods=['POST'])
@@ -116,6 +117,27 @@ def login():
 
     token = generate_jwt_token(email)
     return jsonify({'token': token}), 200
+
+
+@app.route('/auth/verify', methods=['POST'])
+def verify_token():
+    data = request.json
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
+    
+    token = data.get('token')
+
+    if not token:
+        return jsonify({'message': 'Token is missing'}), 401
+
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        email = decoded_token.get('email')
+        return jsonify({'valid': True, 'email': email})
+    except jwt.ExpiredSignatureError:
+        return jsonify({'valid': False, 'message': 'Token has expired'}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({'valid': False, 'message': 'Invalid token'}), 401
 
 
 if __name__ == "__main__":
